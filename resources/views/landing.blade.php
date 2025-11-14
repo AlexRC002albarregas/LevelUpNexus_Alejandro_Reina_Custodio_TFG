@@ -30,7 +30,7 @@
 		<div class="p-6 rounded-xl bg-slate-800/50 border border-pink-500/30 card-hover backdrop-blur-sm">
 			<div class="text-3xl mb-3 text-pink-400"><i class="fas fa-trophy"></i></div>
 			<h3 class="font-bold text-xl mb-2 text-pink-300">Juegos</h3>
-			<p class="text-pink-200/70">CRUD de tu biblioteca con favoritos y horas jugadas.</p>
+			<p class="text-pink-200/70">Administra tu biblioteca con tus juegos favoritos y horas jugadas.</p>
 		</div>
 		<div class="p-6 rounded-xl bg-slate-800/50 border border-blue-500/30 card-hover backdrop-blur-sm">
 			<div class="text-3xl mb-3 text-blue-400"><i class="fas fa-comments"></i></div>

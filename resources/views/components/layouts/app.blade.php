@@ -198,7 +198,7 @@
 	@guest
 		<div
 			id="cookies-banner"
-			class="absolute inset-x-0 bottom-6 px-4 sm:px-0 z-[120] opacity-0 pointer-events-none translate-y-8 transition-all duration-500 ease-out"
+			class="fixed inset-x-0 bottom-4 px-4 sm:px-0 z-[120] opacity-0 pointer-events-none translate-y-8 transition-all duration-500 ease-out"
 		>
 			<div class="mx-auto max-w-3xl rounded-2xl border border-purple-500/40 bg-slate-900/95 backdrop-blur-lg shadow-2xl shadow-purple-900/40 px-6 py-5 sm:py-6">
 				<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

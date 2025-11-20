@@ -233,7 +233,7 @@
 								</div>
 
 								<div class="flex items-end gap-2">
-									<input type="file" name="image" id="postImageInput" accept="image/*" class="hidden">
+									<input type="file" name="images[]" id="postImageInput" accept="image/*" class="hidden">
 									<button 
 										type="button"
 										onclick="document.getElementById('postImageInput').click()"

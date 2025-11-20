@@ -230,7 +230,9 @@ class GroupController extends Controller
 
         $group->members()->detach(auth()->id());
 
-        return back()->with('status', 'Has abandonado el grupo');
+        return redirect()
+            ->route('groups.index')
+            ->with('status', 'Has abandonado el grupo');
     }
 
     /**

@@ -471,7 +471,7 @@
 	</script>
 
 	<!-- Modal de Confirmación de Eliminación de Cuenta -->
-	<div id="deleteAccountModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+	<div id="deleteAccountModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
 		<div class="bg-slate-900 rounded-2xl w-full max-w-md border-2 border-red-500 glow">
 			<div class="p-6 border-b border-red-500/30">
 				<div class="flex items-center gap-3 mb-2">

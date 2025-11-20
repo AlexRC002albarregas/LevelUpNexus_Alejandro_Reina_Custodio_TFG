@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Friendship;
+use App\Models\GroupInvitation;
 
 class AccountController extends Controller
 {
@@ -103,24 +106,51 @@ class AccountController extends Controller
             return back()->withErrors(['password' => 'La contraseña es incorrecta']);
         }
         
-        // Eliminar avatar si existe
-        if($user->avatar && Storage::disk('public')->exists($user->avatar)){
-            Storage::disk('public')->delete($user->avatar);
-        }
-        
-        // Eliminar datos relacionados (opcional: cascada)
-        $user->friendships()->delete(); // Amistades donde es el que envía
-        \App\Models\Friendship::where('friend_id', $user->id)->delete(); // Amistades donde es el receptor
-        $user->sentMessages()->delete();
-        $user->receivedMessages()->delete();
-        $user->posts()->delete();
-        $user->comments()->delete();
-        $user->reactions()->delete();
-        $user->games()->delete();
-        
-        // Eliminar usuario
-        $userId = $user->id;
-        $user->delete();
+        DB::transaction(function () use ($user) {
+            $userId = $user->id;
+
+            if($user->avatar && Storage::disk('public')->exists($user->avatar)){
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            // Eliminar grupos creados y sus avatares
+            $user->ownedGroups()->each(function ($group) {
+                if($group->avatar && Storage::disk('public')->exists($group->avatar)){
+                    Storage::disk('public')->delete($group->avatar);
+                }
+                $group->delete();
+            });
+
+            // Eliminar publicaciones e imágenes
+            $user->posts()->with('images')->chunkById(50, function ($posts) {
+                foreach ($posts as $post) {
+                    foreach ($post->images as $image) {
+                        if($image->path && Storage::disk('public')->exists($image->path)) {
+                            Storage::disk('public')->delete($image->path);
+                        }
+                    }
+                    $post->delete();
+                }
+            });
+
+            $user->games()->delete();
+            $user->comments()->delete();
+            $user->reactions()->delete();
+            $user->sentMessages()->delete();
+            $user->receivedMessages()->delete();
+
+            Friendship::where('user_id', $userId)
+                ->orWhere('friend_id', $userId)
+                ->delete();
+
+            GroupInvitation::where('sender_id', $userId)
+                ->orWhere('recipient_id', $userId)
+                ->delete();
+
+            DB::table('group_user')->where('user_id', $userId)->delete();
+
+            $user->delete();
+        });
         
         // Cerrar sesión
         auth()->logout();

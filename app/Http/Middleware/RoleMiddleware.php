@@ -27,6 +27,10 @@ class RoleMiddleware
             return $next($request);
         }
 
+        if($request->is('admin') || $request->is('admin/*') || $request->routeIs('admin.*')) {
+            return response()->view('errors.403-admin', [], 403);
+        }
+
         abort(403);
     }
 }

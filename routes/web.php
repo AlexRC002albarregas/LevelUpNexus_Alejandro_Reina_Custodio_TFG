@@ -117,4 +117,13 @@ Route::middleware(['auth','role:admin'])->group(function(){
     Route::patch('/admin/users/{user}/toggle', [\App\Http\Controllers\Admin\UserManagementController::class, 'toggle'])->name('admin.users.toggle');
 });
 
+// Catch-all para rutas inexistentes específicas
+Route::get('/games/{any}', function () {
+    return response()->view('errors.games', [], 404);
+})->where('any', '.*');
+
+Route::get('/friends/{any}', function () {
+    return response()->view('errors.friends', [], 404);
+})->where('any', '.*');
+
 /* Fin de rutas */

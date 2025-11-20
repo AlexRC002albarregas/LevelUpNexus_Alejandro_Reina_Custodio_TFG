@@ -53,7 +53,7 @@
 		@if($friends->count() > 0)
 			<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
 				@foreach($friends as $friend)
-					<div onclick="openChat({{ $friend->id }}, '{{ $friend->name }}')" class="p-6 rounded-xl bg-slate-800/50 border border-purple-500/30 card-hover backdrop-blur-sm cursor-pointer relative">
+					<div onclick="openChat({{ $friend->id }}, @js($friend->name), @js($friend->avatar ? asset('storage/' . $friend->avatar) : null))" class="p-6 rounded-xl bg-slate-800/50 border border-purple-500/30 card-hover backdrop-blur-sm cursor-pointer relative">
 						@if(isset($unreadCounts[$friend->id]) && $unreadCounts[$friend->id] > 0)
 							<div class="absolute -top-2 -right-2 bg-pink-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center notification-badge border-2 border-slate-900">
 								{{ $unreadCounts[$friend->id] }}
@@ -140,6 +140,54 @@
 		</div>
 	</div>
 
+	<!-- Modal eliminar mensaje directo -->
+	<div id="chatDeleteMessageModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
+		<div class="bg-slate-900 rounded-2xl w-full max-w-md border-2 border-red-500/60 glow">
+			<div class="p-6 border-b border-red-500/40 flex items-center gap-3">
+				<div class="w-12 h-12 rounded-full bg-red-600/20 border border-red-500 flex items-center justify-center">
+					<i class="fas fa-trash-alt text-red-500 text-2xl"></i>
+				</div>
+				<div>
+					<h3 class="text-xl font-bold text-red-400">Eliminar mensaje</h3>
+					<p class="text-sm text-purple-200/80">Esta acción no se puede deshacer.</p>
+				</div>
+			</div>
+			<div class="p-6 space-y-4">
+				<p class="text-purple-200">
+					¿Seguro que quieres eliminar este mensaje del chat? Desaparecerá para ambos.
+				</p>
+				<div class="flex gap-3">
+					<button type="button" onclick="closeDirectMessageDeleteModal()" class="flex-1 px-5 py-3 rounded-lg border border-purple-500/60 hover:bg-purple-500/20 transition font-semibold text-purple-200">
+						<i class="fas fa-times"></i> Cancelar
+					</button>
+					<button type="button" onclick="confirmDirectMessageDeletion()" class="flex-1 px-5 py-3 rounded-lg bg-red-600 hover:bg-red-700 transition font-bold text-white">
+						<i class="fas fa-trash-alt"></i> Eliminar
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal imagen mensaje directo -->
+	<div id="chatImageModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[210] p-4" onclick="closeDirectImageModal()">
+		<div class="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
+			<button 
+				type="button" 
+				onclick="closeDirectImageModal()" 
+				class="absolute top-4 right-4 w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white transition flex items-center justify-center z-10 glow"
+			>
+				<i class="fas fa-times text-xl"></i>
+			</button>
+			<img 
+				id="chatModalImage" 
+				src="" 
+				alt="Imagen ampliada" 
+				class="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+				onclick="event.stopPropagation()"
+			>
+		</div>
+	</div>
+
 	<!-- Modal Chat -->
 	<div id="chatModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[150] p-4" onclick="closeChat()">
 		<div class="bg-slate-900 rounded-2xl w-full max-w-4xl h-[85vh] max-h-[800px] min-h-[500px] border border-purple-500 glow flex flex-col" onclick="event.stopPropagation()">
@@ -157,11 +205,28 @@
 			</div>
 			<div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-3 min-h-0"></div>
 			<div class="p-4 border-t border-purple-500/30 flex-shrink-0">
-				<form id="chatForm" class="flex gap-2" onsubmit="sendMessage(event)">
-					<input id="chatInput" type="text" placeholder="Escribe un mensaje..." class="flex-1 bg-slate-800 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50">
-					<button type="submit" class="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 font-bold glow-sm transition">
-						<i class="fas fa-paper-plane"></i>
-					</button>
+				<form id="chatForm" class="space-y-3" onsubmit="sendMessage(event)">
+					<input type="file" id="chatImageInput" name="image" accept="image/*" class="hidden">
+					<div id="chatImagePreview" class="hidden relative inline-block rounded-xl border border-purple-500/40 bg-slate-800/60 p-2">
+						<img id="chatImagePreviewImg" src="" alt="Imagen seleccionada" class="max-h-32 rounded-lg object-cover">
+						<button type="button" onclick="clearChatImage()" class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-xs shadow-lg">
+							<i class="fas fa-times"></i>
+						</button>
+					</div>
+					<div class="flex items-end gap-2">
+						<button 
+							type="button" 
+							class="w-12 h-12 rounded-full border border-purple-500/40 text-purple-200 hover:bg-purple-500/20 transition flex items-center justify-center"
+							title="Adjuntar imagen"
+							onclick="document.getElementById('chatImageInput').click()"
+						>
+							<i class="fas fa-image"></i>
+						</button>
+						<input id="chatInput" type="text" placeholder="Escribe un mensaje..." class="flex-1 bg-slate-800 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+						<button type="submit" class="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 font-bold glow-sm transition">
+							<i class="fas fa-paper-plane"></i>
+						</button>
+					</div>
 				</form>
 			</div>
 		</div>
@@ -170,13 +235,74 @@
 	<script>
 		let currentFriendId = null;
 		let currentFriendName = '';
+		let currentFriendAvatar = null;
+		const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+		const chatMessages = document.getElementById('chatMessages');
+		const chatInput = document.getElementById('chatInput');
+		const chatImageInput = document.getElementById('chatImageInput');
+		const chatImagePreview = document.getElementById('chatImagePreview');
+		const chatImagePreviewImg = document.getElementById('chatImagePreviewImg');
+		let isSendingDirectMessage = false;
+		if(chatImageInput) {
+			chatImageInput.addEventListener('change', handleChatImageChange);
+		}
 
-		function openChat(friendId, friendName) {
+		function handleChatImageChange(event) {
+			const file = event.target.files?.[0];
+			if(file) {
+				const reader = new FileReader();
+				reader.onload = function(e) {
+					if(chatImagePreviewImg) {
+						chatImagePreviewImg.src = e.target?.result || '';
+					}
+					if(chatImagePreview) {
+						chatImagePreview.classList.remove('hidden');
+					}
+				};
+				reader.readAsDataURL(file);
+			} else {
+				clearChatImage();
+			}
+		}
+
+		function clearChatImage() {
+			if(chatImageInput) {
+				chatImageInput.value = '';
+			}
+			if(chatImagePreview) {
+				chatImagePreview.classList.add('hidden');
+			}
+			if(chatImagePreviewImg) {
+				chatImagePreviewImg.src = '';
+			}
+		}
+
+		function openChat(friendId, friendName, friendAvatar = null) {
 			currentFriendId = friendId;
 			currentFriendName = friendName;
+			currentFriendAvatar = friendAvatar;
 			document.getElementById('chatName').textContent = friendName;
-			document.getElementById('chatAvatar').textContent = friendName.charAt(0).toUpperCase();
+			const avatarNode = document.getElementById('chatAvatar');
+			if(friendAvatar) {
+				avatarNode.innerHTML = `<img src="${friendAvatar}" alt="${friendName}" class="w-full h-full object-cover rounded-full">`;
+			} else {
+				avatarNode.textContent = friendName.charAt(0).toUpperCase();
+			}
 			document.getElementById('chatModal').classList.remove('hidden');
+			
+			const container = document.getElementById('chatMessages');
+			container.innerHTML = `
+				<div class="flex justify-center py-6">
+					<div class="px-4 py-2 rounded-lg bg-slate-800/70 border border-purple-500/30 text-purple-200 text-sm">
+						Cargando mensajes...
+					</div>
+				</div>
+			`;
+			clearChatImage();
+			if(chatInput) {
+				chatInput.value = '';
+			}
+			
 			loadMessages();
 			
 			// Ocultar el badge de notificación de este amigo
@@ -186,68 +312,324 @@
 		function closeChat() {
 			document.getElementById('chatModal').classList.add('hidden');
 			currentFriendId = null;
+			currentFriendAvatar = null;
+			if(chatInput) {
+				chatInput.value = '';
+			}
+			clearChatImage();
 		}
 
 		async function loadMessages() {
-			const res = await fetch(`/messages/${currentFriendId}`);
-			const data = await res.json();
-			const container = document.getElementById('chatMessages');
-			container.innerHTML = '';
-			
-			data.messages.forEach(msg => {
-				const isMe = msg.sender_id === {{ auth()->id() }};
-				const div = document.createElement('div');
-				div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
-				
-				// Formatear fecha y hora
-				const msgDate = new Date(msg.created_at);
-				const today = new Date();
-				const isToday = msgDate.toDateString() === today.toDateString();
-				const yesterday = new Date(today);
-				yesterday.setDate(yesterday.getDate() - 1);
-				const isYesterday = msgDate.toDateString() === yesterday.toDateString();
-				
-				let timeString = '';
-				if (isToday) {
-					timeString = msgDate.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
-				} else if (isYesterday) {
-					timeString = 'Ayer ' + msgDate.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
-				} else {
-					timeString = msgDate.toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) + ' ' + msgDate.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+			const friendId = currentFriendId;
+			if(!friendId) return;
+
+			try {
+				const res = await fetch(`/messages/${friendId}`);
+				const data = await res.json();
+
+				if(friendId !== currentFriendId) {
+					return;
 				}
-				
-				div.innerHTML = `
-					<div class="max-w-xs ${isMe ? 'bg-purple-600' : 'bg-slate-800'} rounded-2xl px-4 py-2 border ${isMe ? 'border-purple-500' : 'border-purple-500/30'}">
-						<p class="text-white">${msg.content}</p>
-						<div class="text-xs text-purple-300 mt-1">${timeString}</div>
-					</div>
-				`;
-				container.appendChild(div);
-			});
-			container.scrollTop = container.scrollHeight;
-			
-			// Actualizar el contador global de notificaciones
-			updateGlobalNotificationCount();
+
+				if(!res.ok) {
+					throw data;
+				}
+
+				if(chatMessages) {
+					chatMessages.innerHTML = '';
+					data.messages.forEach(message => {
+						chatMessages.appendChild(buildDirectMessage(message));
+					});
+					chatMessages.scrollTop = chatMessages.scrollHeight;
+				}
+
+				updateGlobalNotificationCount();
+			} catch (error) {
+				console.error('No se pudieron cargar los mensajes', error);
+			}
 		}
 
 		async function sendMessage(e) {
 			e.preventDefault();
-			const input = document.getElementById('chatInput');
-			const content = input.value.trim();
-			if(!content) return;
+
+			if(!currentFriendId || isSendingDirectMessage) {
+				return;
+			}
+
+			const content = chatInput ? chatInput.value.trim() : '';
+			const imageFile = chatImageInput?.files?.[0];
+
+			if(!content && !imageFile) {
+				const message = 'Escribe un mensaje o adjunta una imagen.';
+				if(typeof window.showToast === 'function') {
+					window.showToast(message, 'error');
+				} else {
+					alert(message);
+				}
+				return;
+			}
 
 			const formData = new FormData();
-			formData.append('content', content);
 			formData.append('_token', '{{ csrf_token() }}');
+			if(content) {
+				formData.append('content', content);
+			}
+			if(imageFile) {
+				formData.append('image', imageFile);
+			}
 
-			const res = await fetch(`/messages/${currentFriendId}`, {
-				method: 'POST',
-				body: formData
-			});
+			isSendingDirectMessage = true;
 
-			if(res.ok) {
-				input.value = '';
-				loadMessages();
+			try {
+				const res = await fetch(`/messages/${currentFriendId}`, {
+					method: 'POST',
+					body: formData,
+					headers: {
+						'X-Requested-With': 'XMLHttpRequest',
+						'Accept': 'application/json',
+					},
+				});
+
+				const data = await res.json();
+
+				if(!res.ok) {
+					throw data;
+				}
+
+				if(chatInput) {
+					chatInput.value = '';
+				}
+				clearChatImage();
+				appendDirectMessage(data.message);
+			} catch (error) {
+				const message = error?.errors?.content?.[0] || error?.message || 'No se pudo enviar el mensaje.';
+				if(typeof window.showToast === 'function') {
+					window.showToast(message, 'error');
+				} else {
+					alert(message);
+				}
+			} finally {
+				isSendingDirectMessage = false;
+			}
+		}
+
+		function appendDirectMessage(message) {
+			if(!chatMessages) return;
+			console.debug('Mensaje directo recibido', message);
+			chatMessages.appendChild(buildDirectMessage(message));
+			chatMessages.scrollTop = chatMessages.scrollHeight;
+		}
+
+		function buildDirectMessage(message) {
+			const isMe = Number(message.sender_id) === Number({{ auth()->id() }});
+			const wrapper = document.createElement('div');
+			wrapper.className = `flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2`;
+			wrapper.dataset.directMessageId = message.id;
+
+			if(!isMe) {
+				wrapper.appendChild(createFriendAvatarNode());
+			}
+
+			const container = document.createElement('div');
+			container.className = `max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+
+			const bubble = document.createElement('div');
+			bubble.className = `rounded-2xl px-4 py-2 ${isMe ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-sm' : 'bg-slate-700/70 text-purple-100 rounded-bl-sm'} relative group border border-purple-500/30`;
+
+			if(isMe) {
+				const deleteBtn = document.createElement('button');
+				deleteBtn.type = 'button';
+				deleteBtn.className = 'absolute -top-2 -left-2 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity';
+				deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+				deleteBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					openDirectMessageDeleteModal(message.id);
+				});
+				bubble.appendChild(deleteBtn);
+			}
+
+			const hasContent = Boolean(message.content && message.content.trim().length > 0);
+			const hasImage = Boolean(message.image_url && message.image_url.trim().length > 0);
+
+			if(hasContent) {
+				const p = document.createElement('p');
+				p.className = 'whitespace-pre-wrap break-words text-sm';
+				p.textContent = message.content;
+				bubble.appendChild(p);
+			}
+
+			if(hasImage) {
+				const imgWrapper = document.createElement('div');
+				imgWrapper.className = hasContent ? 'mt-2' : '';
+				const img = document.createElement('img');
+				img.src = message.image_url;
+				img.alt = 'Imagen del mensaje';
+				img.className = 'w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 hover:scale-105 transition border border-purple-500/40';
+				img.loading = 'lazy';
+				img.title = 'Click para ver en tamaño completo';
+				img.onerror = () => {
+					img.style.display = 'none';
+					console.error('No se pudo cargar la imagen del mensaje', message.image_url);
+				};
+				img.addEventListener('click', () => openDirectImageModal(message.image_url));
+				imgWrapper.appendChild(img);
+				bubble.appendChild(imgWrapper);
+			}
+
+			const timeLabel = document.createElement('div');
+			timeLabel.className = `text-[10px] uppercase tracking-wide mt-2 ${isMe ? 'text-white/70' : 'text-purple-200/70'}`;
+			timeLabel.textContent = formatDirectMessageTime(message.created_at);
+
+			container.appendChild(bubble);
+			container.appendChild(timeLabel);
+
+			wrapper.appendChild(container);
+
+			if(!isMe) {
+				// gap already exists; just appended avatar to left
+			}
+			return wrapper;
+		}
+
+		function createFriendAvatarNode() {
+			const node = document.createElement('div');
+			node.className = 'w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-xs overflow-hidden border-2 border-purple-400 flex-shrink-0';
+
+			if(currentFriendAvatar) {
+				const img = document.createElement('img');
+				img.src = currentFriendAvatar;
+				img.alt = currentFriendName || 'Avatar';
+				img.className = 'w-full h-full object-cover';
+				node.appendChild(img);
+			} else if(currentFriendName) {
+				node.textContent = currentFriendName.charAt(0).toUpperCase();
+			} else {
+				node.textContent = '?';
+			}
+
+			return node;
+		}
+
+		function formatDirectMessageTime(isoDate) {
+			if(!isoDate) return '';
+
+			const msgDate = new Date(isoDate);
+			const today = new Date();
+			const yesterday = new Date(today);
+			yesterday.setDate(yesterday.getDate() - 1);
+
+			if(msgDate.toDateString() === today.toDateString()) {
+				return msgDate.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+			}
+
+			if(msgDate.toDateString() === yesterday.toDateString()) {
+				return 'Ayer ' + msgDate.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+			}
+
+			return msgDate.toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: 'numeric'}) + ' ' + msgDate.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+		}
+
+		function escapeHtml(string) {
+			if(!string) return '';
+			return string
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		let pendingDirectMessageId = null;
+
+		function openDirectMessageDeleteModal(messageId) {
+			pendingDirectMessageId = messageId;
+			const modal = document.getElementById('chatDeleteMessageModal');
+			if(modal) {
+				modal.classList.remove('hidden');
+				document.body.style.overflow = 'hidden';
+			}
+		}
+
+		function closeDirectMessageDeleteModal() {
+			const modal = document.getElementById('chatDeleteMessageModal');
+			if(modal) {
+				modal.classList.add('hidden');
+				document.body.style.overflow = 'auto';
+			}
+			pendingDirectMessageId = null;
+		}
+
+		function openDirectImageModal(imageUrl) {
+			const modal = document.getElementById('chatImageModal');
+			const modalImg = document.getElementById('chatModalImage');
+			if(!modal || !modalImg || !imageUrl) {
+				return;
+			}
+			modalImg.src = imageUrl;
+			modal.classList.remove('hidden');
+			document.body.style.overflow = 'hidden';
+		}
+
+		function closeDirectImageModal() {
+			const modal = document.getElementById('chatImageModal');
+			const modalImg = document.getElementById('chatModalImage');
+			if(!modal || !modalImg) {
+				return;
+			}
+			modal.classList.add('hidden');
+			modalImg.src = '';
+			document.body.style.overflow = 'auto';
+		}
+
+		document.addEventListener('keydown', function(e) {
+			if(e.key === 'Escape') {
+				closeDirectImageModal();
+				closeDirectMessageDeleteModal();
+			}
+		});
+
+		async function confirmDirectMessageDeletion() {
+			if(!pendingDirectMessageId || !csrfToken) {
+				console.error('Faltan parámetros para eliminar mensaje:', {pendingDirectMessageId, csrfToken});
+				return;
+			}
+
+			try {
+				const res = await fetch(`/messages/${pendingDirectMessageId}`, {
+					method: 'DELETE',
+					headers: {
+						'X-CSRF-TOKEN': csrfToken,
+						'X-Requested-With': 'XMLHttpRequest',
+						'Accept': 'application/json',
+					},
+				});
+
+				const data = await res.json();
+
+				if(!res.ok) {
+					throw data;
+				}
+
+				const node = document.querySelector(`[data-direct-message-id="${pendingDirectMessageId}"]`);
+				if(node) {
+					node.remove();
+				} else {
+					console.warn('No se encontró el elemento del mensaje para eliminar');
+				}
+
+				closeDirectMessageDeleteModal();
+
+				if(typeof window.showToast === 'function') {
+					window.showToast('Mensaje eliminado');
+				}
+			} catch (error) {
+				console.error('Error al eliminar mensaje:', error);
+				const message = error?.message || 'No se pudo eliminar el mensaje.';
+				if(typeof window.showToast === 'function') {
+					window.showToast(message, 'error');
+				} else {
+					alert(message);
+				}
 			}
 		}
 

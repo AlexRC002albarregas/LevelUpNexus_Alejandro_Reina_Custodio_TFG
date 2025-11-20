@@ -41,7 +41,7 @@
 
 		<!-- Formulario de detalles (oculto hasta seleccionar juego) -->
 		<div id="gameDetailsForm" class="hidden p-6 rounded-xl bg-slate-800/50 border border-purple-500/30 backdrop-blur-sm">
-			<h3 class="text-2xl font-bold text-purple-200 mb-4">
+			<h3 id="gameDetailsHeading" class="text-2xl font-bold text-purple-200 mb-4">
 				<i class="fas fa-edit"></i> Completa los detalles del juego
 			</h3>
 			
@@ -216,10 +216,13 @@
 					return {
 						id: game.id,
 						name: game.name,
+						slug: game.slug || '',
 						background_image: game.image || game.background_image,
 						released: game.released,
 						rating: game.rating,
-						platforms: game.platforms
+						platforms: game.platforms || [],
+						parent_platforms: game.parent_platforms || [],
+						genres: game.genres || []
 					};
 				});
 				
@@ -318,13 +321,27 @@
 			`;
 			
 			// Llenar género si está disponible
-			if(game.genres && game.genres.length > 0) {
-				document.getElementById('genre').value = game.genres.map(g => g.name).join(', ');
+			const genreField = document.getElementById('genre');
+			let genreText = '';
+			if(Array.isArray(game.genres) && game.genres.length > 0) {
+				genreText = game.genres.map(g => g.name ?? g).join(', ');
+			} else if(Array.isArray(game.genre_names) && game.genre_names.length > 0) {
+				genreText = game.genre_names.join(', ');
+			} else if(game.genre) {
+				genreText = game.genre;
+			}
+			if(genreText) {
+				genreField.value = genreText;
+			} else {
+				genreField.value = '';
 			}
 			
 			// Mostrar formulario
-			document.getElementById('gameDetailsForm').classList.remove('hidden');
-			document.getElementById('gameDetailsForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+			const detailsForm = document.getElementById('gameDetailsForm');
+			detailsForm.classList.remove('hidden');
+
+			const detailsHeading = document.getElementById('gameDetailsHeading');
+			(detailsHeading || detailsForm).scrollIntoView({ behavior: 'smooth', block: 'center' });
 			
 			// Volver a mostrar juegos populares
 			loadPopularGames();
@@ -382,30 +399,25 @@
 			// Obtener plataformas disponibles del juego
 			const availablePlatforms = new Set();
 			
+			const collectPlatform = (entry) => {
+				if(!entry) return;
+				// Manejar diferentes estructuras posibles
+				const slug = entry.platform?.slug ?? entry.slug ?? '';
+				const name = entry.platform?.name ?? entry.name ?? '';
+				if(slug || name) {
+					const category = mapRawgPlatformToCategory(slug, name);
+					availablePlatforms.add(category);
+				}
+			};
+			
 			if (game.platforms && game.platforms.length > 0) {
 				// Extraer plataformas de la estructura de RAWG
-				game.platforms.forEach(platform => {
-					if (platform.platform) {
-						const category = mapRawgPlatformToCategory(
-							platform.platform.slug || '',
-							platform.platform.name || ''
-						);
-						availablePlatforms.add(category);
-					}
-				});
+				game.platforms.forEach(collectPlatform);
 			}
 			
 			// Si no hay plataformas en platforms, intentar con parent_platforms
 			if (availablePlatforms.size === 0 && game.parent_platforms && game.parent_platforms.length > 0) {
-				game.parent_platforms.forEach(platform => {
-					if (platform.platform) {
-						const category = mapRawgPlatformToCategory(
-							platform.platform.slug || '',
-							platform.platform.name || ''
-						);
-						availablePlatforms.add(category);
-					}
-				});
+				game.parent_platforms.forEach(collectPlatform);
 			}
 			
 			// Limpiar select

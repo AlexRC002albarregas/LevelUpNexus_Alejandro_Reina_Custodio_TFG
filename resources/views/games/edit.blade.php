@@ -39,11 +39,13 @@
 			<input type="hidden" name="released_date" value="{{ $game->released_date ? $game->released_date->format('Y-m-d') : '' }}">
 			<input type="hidden" name="rawg_slug" value="{{ $game->rawg_slug }}">
 			
+			<input type="hidden" name="title" value="{{ $game->title }}">
 			<div>
 				<label class="block text-sm font-semibold text-purple-200 mb-2">
 					<i class="fas fa-heading"></i> Título
 				</label>
-				<input name="title" value="{{ $game->title }}" required class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+				<input value="{{ $game->title }}" disabled class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 opacity-70 cursor-not-allowed">
+				<p class="text-xs text-purple-300 mt-1">El nombre proviene de RAWG y no se puede modificar.</p>
 			</div>
 			
 			<div class="grid md:grid-cols-2 gap-4">

@@ -71,20 +71,36 @@
 
 			<div class="mb-6">
 				<label class="block text-sm mb-2 text-purple-300 font-semibold">
-					<i class="fas fa-image"></i> Imagen (opcional)
+					<i class="fas fa-images"></i> Imágenes (opcional)
 				</label>
 				<input 
 					type="file" 
-					name="image" 
+					name="images[]" 
+					id="postImagesInput"
 					accept="image/*"
+					multiple
+					data-max="4"
 					class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"
 				>
 				<p class="text-sm text-purple-400 mt-1">
-					<i class="fas fa-info-circle"></i> Máximo 5MB (formatos: JPG, PNG, GIF, WebP)
+					<i class="fas fa-info-circle"></i> Puedes adjuntar hasta 4 imágenes (máximo 5MB por archivo).
 				</p>
-				@error('image')
+				@error('images')
 					<p class="text-red-400 text-sm mt-1"><i class="fas fa-exclamation-circle"></i> {{ $message }}</p>
 				@enderror
+				@error('images.*')
+					<p class="text-red-400 text-sm mt-1"><i class="fas fa-exclamation-circle"></i> {{ $message }}</p>
+				@enderror
+
+				<div id="postImagesPreview" class="hidden mt-3">
+					<label class="block text-sm mb-2 text-purple-300 font-semibold">
+						Vista previa
+					</label>
+					<div class="flex flex-wrap gap-3" id="postImagesPreviewList"></div>
+					<button type="button" id="clearImagesSelection" class="mt-3 text-xs text-red-300 hover:text-red-200 font-semibold hidden">
+						<i class="fas fa-times"></i> Limpiar selección
+					</button>
+				</div>
 			</div>
 
 			<div class="mb-6">
@@ -213,6 +229,58 @@
 				gameResults.classList.add('hidden');
 			}
 		});
+
+		// Preview de imágenes seleccionadas
+		const postImagesInput = document.getElementById('postImagesInput');
+		const postImagesPreview = document.getElementById('postImagesPreview');
+		const postImagesPreviewList = document.getElementById('postImagesPreviewList');
+		const clearImagesSelection = document.getElementById('clearImagesSelection');
+
+		function renderSelectedImages(files) {
+			if(!postImagesPreview || !postImagesPreviewList) return;
+
+			postImagesPreviewList.innerHTML = '';
+
+			if(!files.length) {
+				postImagesPreview.classList.add('hidden');
+				if(clearImagesSelection) {
+					clearImagesSelection.classList.add('hidden');
+				}
+				return;
+			}
+
+			files.forEach(file => {
+				const wrapper = document.createElement('div');
+				wrapper.className = 'relative w-20 h-20';
+				const img = document.createElement('img');
+				img.className = 'w-full h-full object-cover rounded-lg border border-purple-500/30';
+				const reader = new FileReader();
+				reader.onload = e => img.src = e.target?.result;
+				reader.readAsDataURL(file);
+				wrapper.appendChild(img);
+				postImagesPreviewList.appendChild(wrapper);
+			});
+
+			postImagesPreview.classList.remove('hidden');
+			if(clearImagesSelection) {
+				clearImagesSelection.classList.remove('hidden');
+			}
+		}
+
+		if(postImagesInput) {
+			postImagesInput.addEventListener('change', function() {
+				const max = parseInt(this.dataset.max || '4', 10);
+				const files = Array.from(this.files || []).slice(0, max);
+				renderSelectedImages(files);
+			});
+		}
+
+		if(clearImagesSelection && postImagesInput) {
+			clearImagesSelection.addEventListener('click', () => {
+				postImagesInput.value = '';
+				renderSelectedImages([]);
+			});
+		}
 	</script>
 </x-layouts.app>
 

@@ -33,13 +33,9 @@
 					<a href="{{ route('posts.edit', $post) }}" class="px-4 py-2 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-300 transition" title="Editar">
 						<i class="fas fa-edit"></i> Editar
 					</a>
-					<form method="POST" action="{{ route('posts.destroy', $post) }}" onsubmit="return confirm('¿Estás seguro de eliminar esta publicación?');" class="inline">
-						@csrf
-						@method('DELETE')
-						<button type="submit" class="px-4 py-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 border border-red-500/50 text-red-300 transition" title="Eliminar">
-							<i class="fas fa-trash-alt"></i> Eliminar
-						</button>
-					</form>
+					<button type="button" onclick="openDeletePostModal({{ $post->id }})" class="px-4 py-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 border border-red-500/50 text-red-300 transition" title="Eliminar">
+						<i class="fas fa-trash-alt"></i> Eliminar
+					</button>
 				</div>
 			@endif
 		</div>
@@ -71,16 +67,40 @@
 
 		<div class="text-purple-100 mb-6 whitespace-pre-wrap text-lg">{{ $post->content }}</div>
 
-			@if($post->image)
-				<div class="mb-6">
+		@if($post->images->count())
+			@php
+				$imageCount = $post->images->count();
+				$isSingleImage = $imageCount === 1;
+			@endphp
+
+			@if($isSingleImage)
+				@php $image = $post->images->first(); @endphp
+				<div class="mb-6 flex justify-center">
 					<img 
-						src="{{ asset('storage/' . $post->image) }}" 
+						src="{{ asset('storage/' . $image->path) }}" 
 						alt="Imagen de la publicación" 
-						class="max-w-md rounded-lg border border-purple-500/30 cursor-pointer hover:opacity-80 transition"
-						onclick="openImageModal('{{ asset('storage/' . $post->image) }}')"
+						class="w-80 h-80 object-cover rounded-2xl border border-purple-500/30 cursor-pointer hover:opacity-90 transition"
+						onclick="openImageModal('{{ asset('storage/' . $image->path) }}')"
 					>
 				</div>
+			@else
+				@php
+					$gridClass = $imageCount === 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3';
+				@endphp
+				<div class="mb-6 grid {{ $gridClass }} gap-4">
+					@foreach($post->images as $image)
+						<div class="relative">
+							<img 
+								src="{{ asset('storage/' . $image->path) }}" 
+								alt="Imagen de la publicación" 
+								class="w-full h-64 object-cover rounded-xl border border-purple-500/30 cursor-pointer hover:opacity-80 transition"
+								onclick="openImageModal('{{ asset('storage/' . $image->path) }}')"
+							>
+						</div>
+					@endforeach
+				</div>
 			@endif
+		@endif
 
 		<div class="flex items-center gap-6 pt-4 border-t border-purple-500/30 text-sm text-purple-400">
 			<span><i class="fas fa-heart"></i> <span data-reaction-total="{{ $post->id }}">{{ $post->reactions->count() }}</span> reacciones</span>
@@ -299,6 +319,45 @@
 		</div>
 	</div>
 
+	<!-- Modal de Eliminar Publicación -->
+	<div id="deletePostModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+		<div class="bg-slate-900 rounded-2xl w-full max-w-md border-2 border-red-500 glow">
+			<div class="p-6 border-b border-red-500/30">
+				<div class="flex items-center gap-3">
+					<div class="w-12 h-12 rounded-full bg-red-600/20 border border-red-500 flex items-center justify-center">
+						<i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+					</div>
+					<h3 class="text-xl font-bold text-red-400">
+						Eliminar Publicación
+					</h3>
+				</div>
+			</div>
+			
+			<div class="p-6">
+				<p class="text-purple-200 mb-4">
+					¿Estás seguro de que quieres eliminar esta publicación?
+				</p>
+				<p class="text-sm text-purple-400 mb-6">
+					Esta acción no se puede deshacer. Se eliminarán todos los comentarios y reacciones asociados.
+				</p>
+				
+				<form id="deletePostForm" method="POST" action="">
+					@csrf
+					@method('DELETE')
+				</form>
+				
+				<div class="flex gap-3">
+					<button type="button" onclick="closeDeletePostModal()" class="flex-1 px-6 py-3 rounded-lg border border-purple-500 hover:bg-purple-500/20 transition font-semibold text-purple-300">
+						<i class="fas fa-times"></i> Cancelar
+					</button>
+					<button type="button" onclick="confirmDeletePost()" class="flex-1 px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 font-bold text-white transition">
+						<i class="fas fa-trash-alt"></i> Eliminar
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		// Modal de imagen
 		function openImageModal(imageSrc) {
@@ -316,6 +375,7 @@
 		document.addEventListener('keydown', function(e) {
 			if (e.key === 'Escape') {
 				closeImageModal();
+				closeDeletePostModal();
 			}
 		});
 
@@ -345,6 +405,28 @@
 		function confirmDeleteComment() {
 			if(deleteCommentId) {
 				document.getElementById('deleteCommentForm').submit();
+			}
+		}
+
+		// Modal de eliminar publicación
+		let deletePostId = null;
+
+		function openDeletePostModal(postId) {
+			deletePostId = postId;
+			document.getElementById('deletePostForm').action = `/posts/${postId}`;
+			document.getElementById('deletePostModal').classList.remove('hidden');
+			document.body.style.overflow = 'hidden';
+		}
+
+		function closeDeletePostModal() {
+			document.getElementById('deletePostModal').classList.add('hidden');
+			document.body.style.overflow = 'auto';
+			deletePostId = null;
+		}
+
+		function confirmDeletePost() {
+			if(deletePostId) {
+				document.getElementById('deletePostForm').submit();
 			}
 		}
 	</script>

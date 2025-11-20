@@ -63,13 +63,9 @@
 									<a href="{{ route('groups.edit', $group) }}" class="px-2 py-1 rounded bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/50 text-blue-300 transition text-sm">
 										<i class="fas fa-edit"></i>
 									</a>
-									<form method="POST" action="{{ route('groups.destroy', $group) }}" onsubmit="return confirm('¿Estás seguro de eliminar este grupo?');" class="inline">
-										@csrf
-										@method('DELETE')
-										<button type="submit" class="px-2 py-1 rounded bg-red-600/30 hover:bg-red-600/50 border border-red-500/50 text-red-300 transition text-sm">
-											<i class="fas fa-trash-alt"></i>
-										</button>
-									</form>
+									<button type="button" onclick="openDeleteGroupModal({{ $group->id }}, '{{ addslashes($group->name) }}')" class="px-2 py-1 rounded bg-red-600/30 hover:bg-red-600/50 border border-red-500/50 text-red-300 transition text-sm">
+										<i class="fas fa-trash-alt"></i>
+									</button>
 								@endif
 							</div>
 							<div class="flex items-center gap-3 flex-wrap text-sm text-purple-400">
@@ -124,7 +120,7 @@
 								@php
 									$isOwnMessage = $post->user_id === auth()->id();
 								@endphp
-								<div class="flex {{ $isOwnMessage ? 'justify-end' : 'justify-start' }} items-end gap-2">
+								<div class="flex {{ $isOwnMessage ? 'justify-end' : 'justify-start' }} items-end gap-2" data-message-id="{{ $post->id }}">
 									@if(!$isOwnMessage)
 										<a href="{{ route('users.show', $post->user) }}" class="flex-shrink-0">
 											<div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-xs overflow-hidden border-2 border-purple-400">
@@ -145,15 +141,20 @@
 										<div class="rounded-2xl px-4 py-2 {{ $isOwnMessage ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-sm' : 'bg-slate-700/70 text-purple-100 rounded-bl-sm' }} relative group">
 											<p class="whitespace-pre-wrap break-words text-sm">{{ $post->content }}</p>
 											
-											@if($post->image)
-												<div class="mt-2">
-													<img 
-														src="{{ asset('storage/' . $post->image) }}" 
-														alt="Imagen del mensaje" 
-														class="w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 hover:scale-105 transition"
-														onclick="openImageModal('{{ asset('storage/' . $post->image) }}')"
-														title="Click para ver en tamaño completo"
-													>
+											@if($post->images->count())
+												@php
+													$imageGrid = $post->images->count() === 1 ? 'grid-cols-1' : 'grid-cols-2';
+												@endphp
+												<div class="mt-2 grid {{ $imageGrid }} gap-2">
+													@foreach($post->images as $image)
+														<img 
+															src="{{ asset('storage/' . $image->path) }}" 
+															alt="Imagen del mensaje" 
+															class="w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 hover:scale-105 transition"
+															onclick="openImageModal('{{ asset('storage/' . $image->path) }}')"
+															title="Click para ver en tamaño completo"
+														>
+													@endforeach
 												</div>
 											@endif
 
@@ -474,16 +475,36 @@
 		}
 
 		function removeImage() {
-			document.getElementById('postImageInput').value = '';
-			document.getElementById('imagePreview').classList.add('hidden');
-			document.getElementById('previewImg').src = '';
+			const imageInput = document.getElementById('postImageInput');
+			const previewWrapper = document.getElementById('imagePreview');
+			const previewImg = document.getElementById('previewImg');
+
+			if(imageInput) {
+				imageInput.value = '';
+			}
+			if(previewWrapper) {
+				previewWrapper.classList.add('hidden');
+			}
+			if(previewImg) {
+				previewImg.src = '';
+			}
 		}
 
 		// Enviar con Enter (sin Shift)
 		function handleKeyPress(event) {
 			if (event.key === 'Enter' && !event.shiftKey) {
 				event.preventDefault();
-				document.getElementById('chatForm').submit();
+				const form = document.getElementById('chatForm');
+				if(!form) {
+					return;
+				}
+
+				if(typeof form.requestSubmit === 'function') {
+					form.requestSubmit();
+				} else {
+					const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+					form.dispatchEvent(submitEvent);
+				}
 			}
 		}
 
@@ -491,6 +512,227 @@
 		const chatMessages = document.getElementById('chatMessages');
 		if(chatMessages) {
 			chatMessages.scrollTop = chatMessages.scrollHeight;
+		}
+
+		const chatFormEl = document.getElementById('chatForm');
+		const messageInput = document.getElementById('messageInput');
+		const currentUserId = {{ auth()->id() }};
+		let isSendingGroupMessage = false;
+
+		const notify = (message, type = 'error') => {
+			if(typeof window.showToast === 'function') {
+				window.showToast(message, type);
+			} else {
+				alert(message);
+			}
+		};
+
+		if(chatFormEl) {
+			chatFormEl.addEventListener('submit', async function(event) {
+				event.preventDefault();
+
+				if(isSendingGroupMessage) {
+					return;
+				}
+
+				const formData = new FormData(chatFormEl);
+				isSendingGroupMessage = true;
+
+				try {
+					const response = await fetch(chatFormEl.action, {
+						method: 'POST',
+						body: formData,
+						headers: {
+							'X-Requested-With': 'XMLHttpRequest',
+							'Accept': 'application/json',
+						},
+					});
+
+					const data = await response.json();
+
+					if(!response.ok) {
+						throw data;
+					}
+
+					appendMessageToChat(data.message, data.can_delete ?? false);
+					chatFormEl.reset();
+					removeImage();
+					if(messageInput) {
+						messageInput.style.height = '';
+					}
+					if(typeof window.showToast === 'function') {
+						window.showToast('Mensaje enviado');
+					}
+				} catch (error) {
+					const message = error?.errors?.content?.[0] || error?.message || 'No se pudo enviar el mensaje.';
+					notify(message, 'error');
+				} finally {
+					isSendingGroupMessage = false;
+				}
+			});
+		}
+
+		function showChatNotice(text, variant = 'info') {
+			if(!chatMessages || !text) {
+				return;
+			}
+
+			const container = document.createElement('div');
+			container.className = 'flex justify-center py-3';
+
+			const colors = variant === 'success'
+				? 'bg-green-600/20 border-green-500/40 text-green-200'
+				: variant === 'error'
+					? 'bg-red-600/20 border-red-500/40 text-red-200'
+					: 'bg-slate-800/80 border-purple-500/30 text-purple-100';
+
+			container.innerHTML = `
+				<div class="px-4 py-2 text-xs font-semibold rounded-full border ${colors} shadow-md">
+					${text}
+				</div>
+			`;
+
+			chatMessages.appendChild(container);
+			chatMessages.scrollTop = chatMessages.scrollHeight;
+
+			setTimeout(() => {
+				container.classList.add('opacity-0', 'translate-y-1', 'transition');
+				setTimeout(() => container.remove(), 300);
+			}, 2500);
+		}
+
+		function appendMessageToChat(message, canDelete) {
+			if(!chatMessages) {
+				return;
+			}
+
+			const element = buildMessageElement(message, canDelete);
+			chatMessages.appendChild(element);
+			chatMessages.scrollTop = chatMessages.scrollHeight;
+		}
+
+		function buildMessageElement(message, canDelete) {
+			const isOwn = Number(message.user.id) === Number(currentUserId);
+			const wrapper = document.createElement('div');
+			wrapper.dataset.messageId = message.id;
+			wrapper.className = `flex ${isOwn ? 'justify-end' : 'justify-start'} items-end gap-2`;
+
+			if(!isOwn) {
+				wrapper.appendChild(createAvatarNode(message.user));
+			}
+
+			const contentWrapper = document.createElement('div');
+			contentWrapper.className = `max-w-[70%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`;
+
+			if(!isOwn) {
+				const nameTag = document.createElement('span');
+				nameTag.className = 'text-xs text-purple-400 mb-1 px-2';
+				nameTag.textContent = message.user.name;
+				contentWrapper.appendChild(nameTag);
+			}
+
+			const bubble = document.createElement('div');
+			bubble.className = `rounded-2xl px-4 py-2 ${isOwn ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-sm' : 'bg-slate-700/70 text-purple-100 rounded-bl-sm'} relative group`;
+
+			const paragraph = document.createElement('p');
+			paragraph.className = 'whitespace-pre-wrap break-words text-sm';
+			paragraph.textContent = message.content;
+			bubble.appendChild(paragraph);
+
+			const imageList = Array.isArray(message.images)
+				? message.images
+				: (message.image_url ? [{ url: message.image_url }] : []);
+
+			if(imageList.length > 0) {
+				const grid = document.createElement('div');
+				grid.className = `mt-2 grid ${imageList.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-2`;
+
+				imageList.forEach((image) => {
+					const url = image?.url || image;
+					if(!url) return;
+					const img = document.createElement('img');
+					img.src = url;
+					img.alt = 'Imagen del mensaje';
+					img.className = 'w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 hover:scale-105 transition';
+					img.title = 'Click para ver en tamaño completo';
+					img.addEventListener('click', () => openImageModal(url));
+					grid.appendChild(img);
+				});
+
+				bubble.appendChild(grid);
+			}
+
+			if(canDelete) {
+				const deleteButton = document.createElement('button');
+				deleteButton.type = 'button';
+				deleteButton.className = `absolute -top-2 ${isOwn ? '-left-2' : '-right-2'} w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity`;
+				deleteButton.title = 'Eliminar mensaje';
+				deleteButton.innerHTML = '<i class="fas fa-times"></i>';
+				deleteButton.addEventListener('click', () => openDeleteMessageModal(message.id));
+				bubble.appendChild(deleteButton);
+			}
+
+			contentWrapper.appendChild(bubble);
+
+			const timeLabel = document.createElement('span');
+			timeLabel.className = 'text-xs text-purple-400/70 mt-1 px-2';
+			timeLabel.textContent = formatTimestampLabel(message.created_at);
+			contentWrapper.appendChild(timeLabel);
+
+			wrapper.appendChild(contentWrapper);
+
+			if(isOwn) {
+				wrapper.appendChild(createAvatarNode(message.user));
+			}
+
+			return wrapper;
+		}
+
+		function createAvatarNode(user) {
+			const link = document.createElement('a');
+			link.href = user.profile_url;
+			link.className = 'flex-shrink-0';
+
+			const avatar = document.createElement('div');
+			avatar.className = 'w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-xs overflow-hidden border-2 border-purple-400';
+
+			if(user.avatar) {
+				const img = document.createElement('img');
+				img.src = user.avatar;
+				img.alt = user.name;
+				img.className = 'w-full h-full object-cover';
+				avatar.appendChild(img);
+			} else {
+				const fallbackName = (user.name || '?').trim();
+				avatar.textContent = fallbackName ? fallbackName.charAt(0).toUpperCase() : '?';
+			}
+
+			link.appendChild(avatar);
+			return link;
+		}
+
+		function formatTimestampLabel(isoDate) {
+			if(!isoDate) {
+				return '';
+			}
+
+			const msgDate = new Date(isoDate);
+			const today = new Date();
+			const yesterday = new Date(today);
+			yesterday.setDate(yesterday.getDate() - 1);
+
+			const isToday = msgDate.toDateString() === today.toDateString();
+			const isYesterday = msgDate.toDateString() === yesterday.toDateString();
+
+			if(isToday) {
+				return msgDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+			}
+
+			if(isYesterday) {
+				return `Ayer ${msgDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+			}
+
+			return `${msgDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })} ${msgDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
 		}
 
 		// Autocompletado para invitar usuario a grupo
@@ -579,6 +821,7 @@
 				closeImageModal();
 				closeKickMemberModal();
 				closeDeleteMessageModal();
+				closeDeleteGroupModal();
 			}
 		});
 
@@ -624,9 +867,70 @@
 			deleteMessageId = null;
 		}
 
-		function confirmDeleteMessage() {
-			if(deleteMessageId) {
-				document.getElementById('deleteMessageForm').submit();
+		async function confirmDeleteMessage() {
+			if(!deleteMessageId) {
+				return;
+			}
+
+			const form = document.getElementById('deleteMessageForm');
+			const formData = new FormData(form);
+
+			try {
+				const response = await fetch(form.action, {
+					method: 'POST',
+					body: formData,
+					headers: {
+						'X-Requested-With': 'XMLHttpRequest',
+						'Accept': 'application/json',
+					},
+				});
+
+				if(!response.ok) {
+					throw await response.json();
+				}
+
+				const messageEl = document.querySelector(`[data-message-id="${deleteMessageId}"]`);
+				if(messageEl) {
+					messageEl.remove();
+				}
+
+				closeDeleteMessageModal();
+				if(typeof window.showToast === 'function') {
+					window.showToast('Mensaje eliminado');
+				}
+				showChatNotice('Mensaje eliminado', 'success');
+			} catch (error) {
+				console.error('No se pudo eliminar el mensaje', error);
+				const message = error?.message || 'No se pudo eliminar el mensaje.';
+				if(typeof window.showToast === 'function') {
+					window.showToast(message, 'error');
+				} else {
+					alert(message);
+				}
+				showChatNotice('No se pudo eliminar el mensaje', 'error');
+			}
+		}
+
+		// Modal de eliminar grupo
+		let deleteGroupId = null;
+
+		function openDeleteGroupModal(groupId, groupName) {
+			deleteGroupId = groupId;
+			document.getElementById('deleteGroupName').textContent = groupName;
+			document.getElementById('deleteGroupForm').action = `/groups/${groupId}`;
+			document.getElementById('deleteGroupModal').classList.remove('hidden');
+			document.body.style.overflow = 'hidden';
+		}
+
+		function closeDeleteGroupModal() {
+			document.getElementById('deleteGroupModal').classList.add('hidden');
+			document.body.style.overflow = 'auto';
+			deleteGroupId = null;
+		}
+
+		function confirmDeleteGroup() {
+			if(deleteGroupId) {
+				document.getElementById('deleteGroupForm').submit();
 			}
 		}
 	</script>
@@ -722,6 +1026,45 @@
 						<i class="fas fa-times"></i> Cancelar
 					</button>
 					<button type="button" onclick="confirmDeleteMessage()" class="flex-1 px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 font-bold text-white transition">
+						<i class="fas fa-trash-alt"></i> Eliminar
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal de Eliminar Grupo -->
+	<div id="deleteGroupModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+		<div class="bg-slate-900 rounded-2xl w-full max-w-md border-2 border-red-500 glow">
+			<div class="p-6 border-b border-red-500/30">
+				<div class="flex items-center gap-3">
+					<div class="w-12 h-12 rounded-full bg-red-600/20 border border-red-500 flex items-center justify-center">
+						<i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+					</div>
+					<h3 class="text-xl font-bold text-red-400">
+						Eliminar Grupo
+					</h3>
+				</div>
+			</div>
+			
+			<div class="p-6">
+				<p class="text-purple-200 mb-4">
+					¿Estás seguro de que quieres eliminar el grupo <strong id="deleteGroupName" class="text-pink-400"></strong>?
+				</p>
+				<p class="text-sm text-purple-400 mb-6">
+					Esta acción no se puede deshacer. Se eliminarán todos los mensajes y miembros del grupo.
+				</p>
+				
+				<form id="deleteGroupForm" method="POST" action="">
+					@csrf
+					@method('DELETE')
+				</form>
+				
+				<div class="flex gap-3">
+					<button type="button" onclick="closeDeleteGroupModal()" class="flex-1 px-6 py-3 rounded-lg border border-purple-500 hover:bg-purple-500/20 transition font-semibold text-purple-300">
+						<i class="fas fa-times"></i> Cancelar
+					</button>
+					<button type="button" onclick="confirmDeleteGroup()" class="flex-1 px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 font-bold text-white transition">
 						<i class="fas fa-trash-alt"></i> Eliminar
 					</button>
 				</div>

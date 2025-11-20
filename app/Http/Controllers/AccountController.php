@@ -27,6 +27,7 @@ class AccountController extends Controller
             'avatar' => ['nullable','image','mimes:jpeg,jpg,png,gif,webp','max:2048'],
             'bio' => ['nullable','string','max:500'],
             'password' => ['nullable','string','min:8','confirmed'],
+            'remove_avatar' => ['nullable','boolean'],
         ], [
             'name.required' => 'El nombre es obligatorio',
             'name.max' => 'El nombre no puede exceder los 255 caracteres',
@@ -54,6 +55,11 @@ class AccountController extends Controller
             // Guardar nuevo avatar
             $path = $request->file('avatar')->store('avatars', 'public');
             $user->avatar = $path;
+        } elseif($request->boolean('remove_avatar')) {
+            if($user->avatar && Storage::disk('public')->exists($user->avatar)){
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $user->avatar = null;
         }
         
         if(isset($validated['bio'])){

@@ -20,6 +20,10 @@
 				<label class="block text-sm mb-2 text-purple-300 font-semibold"><i class="fas fa-lock"></i> Contraseña</label>
 				<input name="password" type="password" required class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50" placeholder="••••••••">
 			</div>
+			<div>
+				<label class="block text-sm mb-2 text-purple-300 font-semibold"><i class="fas fa-lock"></i> Repite tu contraseña</label>
+				<input name="password_confirmation" type="password" required class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-white placeholder-purple-400/50 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50" placeholder="••••••••">
+			</div>
 			<button class="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 font-bold glow transition">
 				<i class="fas fa-rocket"></i> Crear cuenta
 			</button>

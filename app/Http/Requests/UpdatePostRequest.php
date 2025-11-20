@@ -30,7 +30,10 @@ class UpdatePostRequest extends FormRequest
             'game_image' => ['nullable', 'string', 'max:500'],
             'game_platform' => ['nullable', 'string', 'max:255'],
             'visibility' => ['nullable', 'in:public,private,group'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'], // 5MB máximo
+            'images' => ['nullable', 'array'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'],
+            'remove_images' => ['nullable', 'array'],
+            'remove_images.*' => ['integer', 'exists:post_images,id'],
         ];
     }
 }

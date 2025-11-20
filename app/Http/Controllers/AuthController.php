@@ -83,6 +83,7 @@ class AuthController extends Controller
                 'name' => ['required','string','max:255'],
                 'email' => ['required','email','unique:users,email'],
                 'password' => ['required', Password::defaults()],
+                'password_confirmation' => ['required','same:password'],
                 'role' => ['nullable','in:player,group_member,admin'],
             ]);
 
@@ -102,6 +103,7 @@ class AuthController extends Controller
             'name' => ['required','string','max:255'],
             'email' => ['required','email','unique:users,email'],
             'password' => ['required','string','min:8'],
+            'password_confirmation' => ['required','same:password'],
         ]);
 
         $user = User::create([

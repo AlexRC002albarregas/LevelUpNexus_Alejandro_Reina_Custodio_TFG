@@ -73,7 +73,7 @@ class GroupController extends Controller
      */
     public function show(Group $group)
     {
-        $group->load(['owner', 'members', 'posts.user']);
+        $group->load(['owner', 'members', 'posts.user', 'posts.images']);
         $isMember = $group->members->contains(auth()->id());
         $isOwner = $group->owner_id === auth()->id();
         

@@ -43,19 +43,24 @@ class RawgController extends Controller
             $games = [];
             if(isset($data['results'])) {
                 foreach($data['results'] as $game) {
-                    $platforms = [];
-                    if(isset($game['platforms'])) {
-                        foreach($game['platforms'] as $platform) {
-                            $platforms[] = $platform['platform']['name'];
-                        }
-                    }
+                    // Mantener la estructura completa de platforms para el frontend
+                    $platforms = $game['platforms'] ?? [];
+                    
+                    // Incluir parent_platforms si está disponible
+                    $parentPlatforms = $game['parent_platforms'] ?? [];
+                    
+                    // Incluir genres si está disponible
+                    $genres = $game['genres'] ?? [];
                     
                     $games[] = [
                         'id' => $game['id'],
                         'name' => $game['name'],
+                        'slug' => $game['slug'] ?? null,
                         'image' => $game['background_image'] ?? null,
                         'background_image' => $game['background_image'] ?? null, // Para compatibilidad
-                        'platforms' => $platforms,
+                        'platforms' => $platforms, // Estructura completa
+                        'parent_platforms' => $parentPlatforms, // Estructura completa
+                        'genres' => $genres, // Estructura completa
                         'released' => $game['released'] ?? null,
                         'rating' => $game['rating'] ?? null,
                     ];

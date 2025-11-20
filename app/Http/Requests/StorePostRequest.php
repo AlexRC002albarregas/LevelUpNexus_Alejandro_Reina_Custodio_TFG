@@ -30,7 +30,8 @@ class StorePostRequest extends FormRequest
             'game_image' => ['nullable', 'string', 'max:500'],
             'game_platform' => ['nullable', 'string', 'max:255'],
             'visibility' => ['nullable', 'in:public,private,group'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'], // 5MB máximo
+            'images' => ['nullable', 'array', 'max:4'],
+            'images.*' => ['image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'],
         ];
     }
 
@@ -47,9 +48,11 @@ class StorePostRequest extends FormRequest
             'group_id.exists' => 'El grupo seleccionado no existe',
             'game_id.exists' => 'El juego seleccionado no existe',
             'visibility.in' => 'La visibilidad debe ser: pública, privada o de grupo',
-            'image.image' => 'El archivo debe ser una imagen',
-            'image.mimes' => 'La imagen debe ser de tipo: jpeg, jpg, png, gif o webp',
-            'image.max' => 'La imagen no puede ser mayor de 5MB',
+            'images.array' => 'Las imágenes deben enviarse en un formato válido.',
+            'images.max' => 'Solo puedes adjuntar hasta 4 imágenes.',
+            'images.*.image' => 'Cada archivo debe ser una imagen válida.',
+            'images.*.mimes' => 'Las imágenes deben ser jpeg, jpg, png, gif o webp.',
+            'images.*.max' => 'Cada imagen no puede ser mayor de 5MB.',
         ];
     }
 }

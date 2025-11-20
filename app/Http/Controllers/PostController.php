@@ -37,7 +37,7 @@ class PostController extends Controller
         
         // Filtrar publicaciones según visibilidad del post y perfil del autor
         // Excluir publicaciones de grupo (group_id no null)
-        $postsQuery = Post::with(['user', 'group', 'game', 'reactions.user', 'comments.user'])
+        $postsQuery = Post::with(['user', 'group', 'game', 'reactions.user', 'comments.user', 'images'])
             ->whereNull('group_id') // Solo publicaciones generales, no de grupos
             ->where(function($query) use ($userId, $friendIds) {
                 // 1. Propias publicaciones (siempre visibles)
@@ -95,6 +95,14 @@ class PostController extends Controller
             });
         }
 
+        // Filtro por usuario (búsqueda por nombre)
+        if ($request->filled('user')) {
+            $userSearch = $request->input('user');
+            $postsQuery->whereHas('user', function($userQuery) use ($userSearch) {
+                $userQuery->where('name', 'like', '%' . $userSearch . '%');
+            });
+        }
+
         // Filtro por antigüedad
         $sort = $request->input('sort', 'recent');
         if ($sort === 'oldest') {
@@ -115,6 +123,7 @@ class PostController extends Controller
             'availableGames' => $availableGames,
             'currentSort' => $sort,
             'currentGame' => $request->input('game'),
+            'currentUser' => $request->input('user'),
         ]);
     }
 
@@ -143,17 +152,37 @@ class PostController extends Controller
             'visibility' => $request->group_id ? 'group' : ($request->visibility ?? 'public'),
         ];
 
-        // Manejar subida de imagen
-        if($request->hasFile('image')){
-            $path = $request->file('image')->store('posts', 'public');
-            $data['image'] = $path;
-        }
-
         $post = Post::create($data);
+        $this->storePostImages($post, $request->file('images', []));
+        $post->load(['user', 'group', 'images']);
 
         $redirectRoute = $request->group_id 
             ? route('groups.show', $request->group_id)
             : route('posts.show', $post);
+
+        if ($request->expectsJson()) {
+            $canDelete = $this->canUserDeletePost($post);
+
+            return response()->json([
+                'message' => [
+                    'id' => $post->id,
+                    'content' => $post->content,
+                    'created_at' => $post->created_at->toIso8601String(),
+                    'images' => $post->images->map(fn($image) => [
+                        'id' => $image->id,
+                        'url' => asset('storage/' . $image->path),
+                    ]),
+                    'user' => [
+                        'id' => $post->user->id,
+                        'name' => $post->user->name,
+                        'avatar' => $post->user->avatar ? asset('storage/' . $post->user->avatar) : null,
+                        'profile_url' => route('users.show', $post->user),
+                    ],
+                ],
+                'delete_url' => route('posts.destroy', $post),
+                'can_delete' => $canDelete,
+            ], 201);
+        }
 
         return redirect($redirectRoute)
             ->with('status', 'Publicación creada correctamente');
@@ -169,7 +198,7 @@ class PostController extends Controller
         // Verificar si el usuario puede ver esta publicación
         // 1. Si es el propio autor, siempre puede ver
         if($post->user_id === auth()->id()) {
-            $post->load(['user', 'group', 'game', 'comments.user', 'reactions.user']);
+            $post->load(['user', 'group', 'game', 'comments.user', 'reactions.user', 'images']);
             return view('posts.show', compact('post'));
         }
         
@@ -192,7 +221,7 @@ class PostController extends Controller
         }
         // 'public' y otros valores: ya pasaron la verificación del perfil
         
-        $post->load(['user', 'group', 'game', 'comments.user', 'reactions.user']);
+        $post->load(['user', 'group', 'game', 'comments.user', 'reactions.user', 'images']);
         
         return view('posts.show', compact('post'));
     }
@@ -208,9 +237,9 @@ class PostController extends Controller
             403
         );
         
-        $groups = auth()->user()->groups;
-        
-        return view('posts.edit', compact('post', 'groups'));
+        $post->load('images');
+
+        return view('posts.edit', compact('post'));
     }
 
     /**
@@ -218,24 +247,40 @@ class PostController extends Controller
      */
     public function update(UpdatePostRequest $request, Post $post)
     {
+        $isGroupPost = !is_null($post->group_id);
+        $post->load('images');
+
         $data = [
             'content' => $request->content,
-            'group_id' => $request->group_id,
-            'visibility' => $request->group_id ? 'group' : ($request->visibility ?? 'public'),
+            'group_id' => $post->group_id,
+            'visibility' => $isGroupPost ? 'group' : ($request->visibility ?? 'public'),
         ];
 
-        // Manejar subida de imagen
-        if($request->hasFile('image')){
-            // Eliminar imagen anterior si existe
-            if($post->image && Storage::disk('public')->exists($post->image)){
-                Storage::disk('public')->delete($post->image);
-            }
-            // Guardar nueva imagen
-            $path = $request->file('image')->store('posts', 'public');
-            $data['image'] = $path;
+        $post->update($data);
+
+        $removeIds = collect($request->input('remove_images', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id);
+
+        $imagesToRemove = $post->images->whereIn('id', $removeIds);
+        $remainingCount = $post->images->count() - $imagesToRemove->count();
+        $newImages = $request->file('images', []);
+
+        if ($remainingCount + count($newImages) > 4) {
+            return back()
+                ->withErrors(['images' => 'Puedes adjuntar hasta 4 imágenes por publicación.'])
+                ->withInput();
         }
 
-        $post->update($data);
+        foreach ($imagesToRemove as $image) {
+            if (Storage::disk('public')->exists($image->path)) {
+                Storage::disk('public')->delete($image->path);
+            }
+            $image->delete();
+        }
+
+        $post->unsetRelation('images');
+        $this->storePostImages($post, $newImages);
 
         return redirect()
             ->route('posts.show', $post)
@@ -247,46 +292,22 @@ class PostController extends Controller
      */
     public function destroy(Post $post)
     {
-        $canDelete = false;
         $redirectRoute = 'posts.index';
+        $canDelete = $this->canUserDeletePost($post);
 
-        // Si es el autor del post
-        if(auth()->id() === $post->user_id) {
-            $canDelete = true;
-        }
-        
-        // Si es admin
-        if(auth()->user()->role === 'admin') {
-            $canDelete = true;
-        }
+        abort_unless($canDelete, 403, 'No tienes permisos para eliminar esta publicación');
 
-        // Si es un post de grupo, verificar si es owner o moderator del grupo
         if($post->group_id) {
-            $group = $post->group;
-            $isOwner = $group->owner_id === auth()->id();
-            
-            $memberRole = $group->members()
-                ->where('user_id', auth()->id())
-                ->first()
-                ->pivot
-                ->member_role ?? null;
-            
-            $isModerator = $memberRole === 'moderator';
-
-            if($isOwner || $isModerator) {
-                $canDelete = true;
-            }
-
-            // Si es un post de grupo, redirigir al grupo
             $redirectRoute = 'groups.show';
             $redirectParam = $post->group_id;
         }
-
-        abort_unless($canDelete, 403, 'No tienes permisos para eliminar esta publicación');
         
-        // Eliminar imagen si existe
-        if($post->image && \Illuminate\Support\Facades\Storage::disk('public')->exists($post->image)){
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($post->image);
+        $post->load('images');
+        foreach ($post->images as $image) {
+            if (Storage::disk('public')->exists($image->path)) {
+                Storage::disk('public')->delete($image->path);
+            }
+            $image->delete();
         }
 
         $post->delete();
@@ -296,5 +317,67 @@ class PostController extends Controller
         }
 
         return redirect()->route($redirectRoute)->with('status', 'Publicación eliminada correctamente');
+    }
+
+    /**
+     * Determina si el usuario autenticado puede eliminar una publicación.
+     */
+    protected function canUserDeletePost(Post $post, $user = null): bool
+    {
+        $user = $user ?: auth()->user();
+
+        if(!$user) {
+            return false;
+        }
+
+        if($user->id === $post->user_id || $user->role === 'admin') {
+            return true;
+        }
+
+        if($post->group_id) {
+            $group = $post->group ?: Group::find($post->group_id);
+
+            if(!$group) {
+                return false;
+            }
+
+            if($group->owner_id === $user->id) {
+                return true;
+            }
+
+            $memberRole = $group->members()
+                ->where('user_id', $user->id)
+                ->first()
+                ->pivot
+                ->member_role ?? null;
+
+            return $memberRole === 'moderator';
+        }
+
+        return false;
+    }
+
+    /**
+     * Almacena nuevas imágenes asociadas a un post respetando el límite.
+     */
+    protected function storePostImages(Post $post, array $images = []): void
+    {
+        if (empty($images)) {
+            return;
+        }
+
+        $existingCount = $post->images()->count();
+        $availableSlots = max(0, 4 - $existingCount);
+
+        if ($availableSlots === 0) {
+            return;
+        }
+
+        $uploads = array_slice($images, 0, $availableSlots);
+
+        foreach ($uploads as $imageFile) {
+            $path = $imageFile->store('posts', 'public');
+            $post->images()->create(['path' => $path]);
+        }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use App\Models\{User, Friendship, Message};
 
 class FriendController extends Controller
@@ -101,12 +102,29 @@ class FriendController extends Controller
     public function destroy(Friendship $friendship)
     {
         // Verificar que el usuario autenticado es parte de esta amistad
-        if($friendship->user_id !== auth()->id() && $friendship->friend_id !== auth()->id()){
+        $authId = auth()->id();
+        if($friendship->user_id !== $authId && $friendship->friend_id !== $authId){
             abort(403);
         }
         
         // Solo eliminar si la amistad está aceptada
         if($friendship->status === 'accepted'){
+            $friendId = $friendship->user_id === $authId ? $friendship->friend_id : $friendship->user_id;
+
+            // Eliminar mensajes entre ambos usuarios (incluyendo imágenes)
+            $messages = Message::where(function($q) use ($authId, $friendId){
+                $q->where('sender_id', $authId)->where('receiver_id', $friendId);
+            })->orWhere(function($q) use ($authId, $friendId){
+                $q->where('sender_id', $friendId)->where('receiver_id', $authId);
+            })->get();
+
+            foreach($messages as $message){
+                if($message->image_path && Storage::disk('public')->exists($message->image_path)){
+                    Storage::disk('public')->delete($message->image_path);
+                }
+                $message->delete();
+            }
+
             $friendship->delete();
             return back()->with('status', 'Amigo eliminado correctamente');
         }

@@ -19,8 +19,9 @@ class UserController extends Controller
         } else {
             // Filtrar posts: solo mostrar públicos si el perfil es privado y no es amigo
             $posts = $user->posts()
+                ->whereNull('group_id')
                 ->where(function($query) use ($user) {
-                    // Si es el propio usuario, mostrar todos sus posts
+                    // Si es el propio usuario, mostrar todos sus posts (ya excluimos grupos)
                     if(auth()->id() === $user->id) {
                         return;
                     }

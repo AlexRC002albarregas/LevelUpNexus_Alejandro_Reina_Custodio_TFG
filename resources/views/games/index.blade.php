@@ -32,7 +32,12 @@
 			</div>
 			
 			@if(request('sort') || request('genre'))
-				<a href="{{ route('games.index') }}" class="px-3 py-2.5 rounded-lg bg-red-600/20 border border-red-500 hover:bg-red-600/40 transition text-red-300 text-sm" title="Limpiar filtros">
+				<a 
+					href="{{ route('games.index') }}" 
+					class="w-12 h-12 flex items-center justify-center rounded-xl bg-red-600/20 border border-red-500 hover:bg-red-600/40 transition text-red-200 text-lg shadow-sm shadow-red-900/40" 
+					title="Limpiar filtros"
+					aria-label="Limpiar filtros"
+				>
 					<i class="fas fa-times"></i>
 				</a>
 			@endif
@@ -42,8 +47,9 @@
 			<i class="fas fa-plus"></i> Añadir juego
 		</a>
 	</div>
-	<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-		@foreach($games as $g)
+	@if($games->count())
+		<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+			@foreach($games as $g)
 			<div class="p-6 rounded-xl bg-slate-800/50 border border-purple-500/30 card-hover backdrop-blur-sm flex flex-col">
 				@if($g->rawg_image)
 					<div class="aspect-video bg-slate-900 rounded-lg overflow-hidden mb-4">
@@ -86,8 +92,20 @@
 				</div>
 			</div>
 		@endforeach
-	</div>
-	<div class="mt-6">{{ $games->links() }}</div>
+		</div>
+		<div class="mt-6">{{ $games->links() }}</div>
+	@else
+		<div class="p-12 rounded-3xl bg-slate-900/40 border border-purple-500/30 text-center backdrop-blur">
+			<div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white text-4xl mb-6 shadow-lg shadow-purple-900/40">
+				<i class="fas fa-ghost"></i>
+			</div>
+			<h2 class="text-2xl font-bold text-purple-100 mb-2">Aún no hay juegos aquí</h2>
+			<p class="text-purple-300 mb-6 max-w-xl mx-auto">Tu biblioteca está vacía por ahora. Explora por los juegos de nuestro catálogo y empieza a construirla para llevar el control de tus horas jugadas y plataformas.</p>
+			<a href="{{ route('games.create') }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold transition">
+				<i class="fas fa-plus"></i> Añadir mi primer juego
+			</a>
+		</div>
+	@endif
 
 	<!-- Modal de Confirmación de Eliminación -->
 	<div id="deleteGameModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -125,6 +143,14 @@
 	<script>
 		let gameToDelete = null;
 
+		document.addEventListener('DOMContentLoaded', function() {
+			const notice = sessionStorage.getItem('gameDeleteNotice');
+			if(notice && typeof window.showToast === 'function') {
+				window.showToast(notice);
+				sessionStorage.removeItem('gameDeleteNotice');
+			}
+		});
+
 		function openDeleteGameModal(gameId, gameTitle) {
 			gameToDelete = gameId;
 			document.getElementById('deleteGameName').textContent = gameTitle;
@@ -155,12 +181,22 @@
 					credentials: 'same-origin'
 				});
 
+				let data = {};
+				try {
+					data = await response.json();
+				} catch (err) {
+					data = {};
+				}
+
 				if (response.ok) {
 					closeDeleteGameModal();
-					// Recargar la página para mostrar los cambios
+					if(data?.message) {
+						sessionStorage.setItem('gameDeleteNotice', data.message);
+					} else {
+						sessionStorage.setItem('gameDeleteNotice', 'Juego eliminado correctamente');
+					}
 					window.location.reload();
 				} else {
-					const data = await response.json();
 					alert('Error: ' + (data.message || 'No se pudo eliminar el juego'));
 					deleteBtn.disabled = false;
 					deleteBtn.innerHTML = originalText;

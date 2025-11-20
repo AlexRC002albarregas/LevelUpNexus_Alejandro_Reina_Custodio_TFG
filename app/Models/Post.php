@@ -10,7 +10,7 @@ class Post extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'group_id', 'game_id', 'content', 'visibility', 'image',
+        'user_id', 'group_id', 'game_id', 'content', 'visibility',
         'rawg_game_id', 'game_title', 'game_image', 'game_platform'
     ];
 
@@ -52,5 +52,13 @@ class Post extends Model
     public function reactions()
     {
         return $this->morphMany(Reaction::class, 'reactable');
+    }
+
+    /**
+     * Imágenes asociadas a la publicación.
+     */
+    public function images()
+    {
+        return $this->hasMany(PostImage::class);
     }
 }

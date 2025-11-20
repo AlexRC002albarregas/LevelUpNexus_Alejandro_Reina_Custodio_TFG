@@ -55,11 +55,11 @@
 				</div>
 			</div>
 
-			<!-- Juegos favoritos -->
+			<!-- Juegos recomendados -->
 			@if($canView && $user->favorite_games && count($user->favorite_games) > 0)
 				<div class="mt-6 pt-6 border-t border-purple-500/30">
 					<h3 class="font-bold text-lg text-purple-200 mb-4">
-						<i class="fas fa-gamepad"></i> Juegos Favoritos
+						<i class="fas fa-bookmark"></i> Juegos recomendados
 					</h3>
 					<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="userFavoriteGames">
 						<p class="text-purple-400 text-sm col-span-full">Cargando juegos...</p>
@@ -81,12 +81,12 @@
 		@else
 			<!-- Estadísticas (solo para perfiles visibles) -->
 			@php
-				$visiblePostsCount = $isOwnProfile 
-					? $user->posts()->count() 
-					: ($user->is_private && !$isFriend 
-						? $user->posts()->where('visibility', 'public')->count() 
-						: $user->posts()->count());
-				$friendsCount = ($isOwnProfile || $isFriend) ? $user->friends()->count() : null;
+				$postsCountQuery = $user->posts()->whereNull('group_id');
+				if(!$isOwnProfile && $user->is_private && !$isFriend) {
+					$postsCountQuery->where('visibility', 'public');
+				}
+				$visiblePostsCount = $postsCountQuery->count();
+				$friendsCount = $user->friends()->count();
 			@endphp
 			<div class="grid grid-cols-3 gap-4 mb-6">
 				<div class="p-4 rounded-xl bg-slate-800/50 border border-purple-500/30 backdrop-blur-sm text-center">
@@ -95,21 +95,12 @@
 					</div>
 					<div class="text-sm text-purple-400 mt-1">Publicaciones</div>
 				</div>
-				@if($friendsCount !== null)
-					<div class="p-4 rounded-xl bg-slate-800/50 border border-purple-500/30 backdrop-blur-sm text-center">
-						<div class="text-3xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-							{{ $friendsCount }}
-						</div>
-						<div class="text-sm text-purple-400 mt-1">Amigos</div>
+				<div class="p-4 rounded-xl bg-slate-800/50 border border-purple-500/30 backdrop-blur-sm text-center">
+					<div class="text-3xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+						{{ $friendsCount }}
 					</div>
-				@else
-					<div class="p-4 rounded-xl bg-slate-800/50 border border-purple-500/30 backdrop-blur-sm text-center">
-						<div class="text-3xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-							<i class="fas fa-lock"></i>
-						</div>
-						<div class="text-sm text-purple-400 mt-1">Amigos</div>
-					</div>
-				@endif
+					<div class="text-sm text-purple-400 mt-1">Amigos</div>
+				</div>
 				<div class="p-4 rounded-xl bg-slate-800/50 border border-purple-500/30 backdrop-blur-sm text-center">
 					<div class="text-3xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
 						{{ $user->comments()->count() }}
@@ -172,13 +163,13 @@
 
 	@if($canView && $user->favorite_games && count($user->favorite_games) > 0)
 	<script>
-		// Cargar juegos favoritos del usuario
+		// Cargar juegos recomendados del usuario
 		document.addEventListener('DOMContentLoaded', function() {
 			const gameIds = @json($user->favorite_games);
 			const container = document.getElementById('userFavoriteGames');
 			
 			if(!gameIds || gameIds.length === 0) {
-				container.innerHTML = '<p class="text-purple-400 text-sm">No hay juegos favoritos.</p>';
+				container.innerHTML = '<p class="text-purple-400 text-sm">Este usuario aún no ha recomendado juegos.</p>';
 				return;
 			}
 
@@ -203,12 +194,12 @@
 							</div>
 						`).join('');
 					} else {
-						container.innerHTML = '<p class="text-purple-400 text-sm col-span-full">No se pudieron cargar los juegos.</p>';
+						container.innerHTML = '<p class="text-purple-400 text-sm col-span-full">No se pudieron cargar los juegos recomendados.</p>';
 					}
 				})
 				.catch(error => {
 					console.error('Error cargando juegos:', error);
-					container.innerHTML = '<p class="text-red-400 text-sm col-span-full">Error al cargar juegos favoritos</p>';
+					container.innerHTML = '<p class="text-red-400 text-sm col-span-full">Error al cargar los juegos recomendados</p>';
 				});
 		});
 	</script>

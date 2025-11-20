@@ -48,6 +48,21 @@
 						</label>
 						<input name="avatar" type="file" accept="image/*" class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50">
 						<p class="text-xs text-purple-400 mt-1">Opcional: JPG, PNG, GIF o WEBP (máx. 2MB)</p>
+						@if(auth()->user()->avatar)
+							<div class="mt-3 flex items-center gap-3">
+								<label class="inline-flex items-center gap-2 cursor-pointer">
+									<input 
+										type="checkbox" 
+										name="remove_avatar" 
+										value="1"
+										{{ old('remove_avatar') ? 'checked' : '' }}
+										class="w-4 h-4 rounded border-purple-500/60 bg-slate-900 text-pink-500 focus:ring-pink-500"
+									>
+									<span class="text-sm text-purple-200 font-medium">Eliminar mi foto actual</span>
+								</label>
+							</div>
+							<p class="text-xs text-purple-400 mt-1">Si la eliminas, se mostrará tu inicial.</p>
+						@endif
 					</div>
 
 					<div>
@@ -60,7 +75,7 @@
 
 					<div>
 						<label class="block text-sm mb-2 text-purple-300 font-semibold">
-							<i class="fas fa-gamepad"></i> Juegos favoritos
+							<i class="fas fa-bookmark"></i> Juegos recomendados
 						</label>
 						<button type="button" onclick="openFavoritesModal()" class="w-full bg-slate-900 border border-purple-500/50 rounded-lg px-4 py-3 text-left text-purple-300 hover:border-purple-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition">
 							<span id="favoritesCount">{{ count(auth()->user()->favorite_games ?? []) }}</span> juego(s) seleccionado(s) - Click para editar
@@ -131,12 +146,12 @@
 		</div>
 	</div>
 
-	<!-- Modal de Juegos Favoritos -->
+	<!-- Modal de Juegos recomendados -->
 	<div id="favoritesModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[150] p-4" onclick="closeFavoritesModal()">
 		<div class="bg-slate-900 rounded-2xl w-full max-w-5xl border border-purple-500 glow flex flex-col" style="height: 85vh;" onclick="event.stopPropagation()">
 			<div class="p-4 border-b border-purple-500/30 flex items-center justify-between flex-shrink-0">
 				<h3 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-					<i class="fas fa-gamepad"></i> Selecciona tus juegos favoritos
+					<i class="fas fa-bookmark"></i> Selecciona tus juegos recomendados
 				</h3>
 				<button onclick="closeFavoritesModal()" class="text-purple-400 hover:text-white transition">
 					<i class="fas fa-times text-2xl"></i>
@@ -149,11 +164,11 @@
 			</div>
 			
 			<div class="flex-1 overflow-y-auto">
-				<!-- Mis favoritos actuales (compacto) -->
+				<!-- Mis recomendados actuales (compacto) -->
 				<div id="currentFavorites" class="p-4 border-b border-purple-500/30">
 					<h4 class="font-bold text-sm text-purple-300 mb-2 flex items-center gap-2">
 						<i class="fas fa-star text-yellow-500"></i> 
-						Mis favoritos (<span id="favCount">0</span>)
+						Mis recomendados (<span id="favCount">0</span>)
 					</h4>
 					<div id="currentFavoritesGrid" class="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2"></div>
 				</div>
@@ -177,9 +192,9 @@
 		let searchTimeout = null;
 		let userFavorites = @json(auth()->user()->favorite_games ?? []);
 
-		// Cargar favoritos al cargar la página
+		// Cargar recomendados al cargar la página
 		window.addEventListener('DOMContentLoaded', () => {
-			updateFavoritesDisplay(); // Cargar favoritos en la vista principal
+			updateFavoritesDisplay(); // Cargar recomendados en la vista principal
 		});
 
 		function openFavoritesModal() {
@@ -199,7 +214,7 @@
 		}
 
 		async function loadFavorites() {
-			console.log('Cargando favoritos del usuario...');
+			console.log('Cargando selección recomendada del usuario...');
 			const grid = document.getElementById('currentFavoritesGrid');
 			const counter = document.getElementById('favCount');
 			
@@ -218,14 +233,14 @@
 				if(counter) counter.textContent = data.games ? data.games.length : 0;
 				
 				if(!data.games || data.games.length === 0) {
-					grid.innerHTML = '<p class="text-purple-400 col-span-full text-center py-2 text-sm">No tienes juegos favoritos aún</p>';
+					grid.innerHTML = '<p class="text-purple-400 col-span-full text-center py-2 text-sm">No tienes juegos recomendados aún</p>';
 					return;
 				}
 				
 				grid.innerHTML = data.games.map(game => createCompactCard(game)).join('');
 			} catch(error) {
-				console.error('Error cargando favoritos:', error);
-				grid.innerHTML = '<p class="text-red-400 col-span-full text-center py-2 text-sm">Error al cargar favoritos</p>';
+				console.error('Error cargando recomendados:', error);
+				grid.innerHTML = '<p class="text-red-400 col-span-full text-center py-2 text-sm">Error al cargar recomendados</p>';
 			}
 		}
 
@@ -335,7 +350,7 @@
 			}
 		}
 
-		// Tarjeta compacta para favoritos
+		// Tarjeta compacta para recomendados
 		function createCompactCard(game) {
 			return `
 				<div class="relative group cursor-pointer" onclick="toggleFavorite(${game.id})" title="${game.name}">
@@ -367,18 +382,29 @@
 			const isFavorite = userFavorites.includes(gameId);
 			const endpoint = isFavorite ? '/rawg/favorites/remove' : '/rawg/favorites/add';
 			
-			const res = await fetch(endpoint, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-TOKEN': '{{ csrf_token() }}'
-				},
-				body: JSON.stringify({ game_id: gameId })
-			});
-			
-			if(res.ok) {
+			try {
+				const res = await fetch(endpoint, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-TOKEN': '{{ csrf_token() }}',
+						'Accept': 'application/json',
+						'X-Requested-With': 'XMLHttpRequest'
+					},
+					credentials: 'same-origin',
+					body: JSON.stringify({ game_id: gameId })
+				});
+				
+				if(!res.ok) {
+					const errorData = await res.json().catch(() => ({}));
+					const message = errorData?.error || errorData?.message || 'No se pudo actualizar recomendados';
+					console.error('Error al actualizar recomendados:', message);
+					alert(message);
+					return;
+				}
+
 				const data = await res.json();
-				userFavorites = data.favorites;
+				userFavorites = data.favorites || [];
 				loadFavorites();
 				
 				// Recargar búsqueda actual
@@ -389,21 +415,24 @@
 				} else {
 					loadPopularGames();
 				}
+			} catch (error) {
+				console.error('No se pudo modificar el favorito:', error);
+				alert('No se pudo actualizar el listado de recomendados.');
 			}
 		}
 
 		function updateFavoritesDisplay() {
 			document.getElementById('favoritesCount').textContent = userFavorites.length;
 			
-			// Actualizar preview de favoritos en el formulario
+			// Actualizar preview de recomendados en el formulario
 			const container = document.getElementById('favoritesList');
 			
 			if(userFavorites.length === 0) {
-				container.innerHTML = '<p class="text-purple-400 text-sm">No has seleccionado juegos favoritos aún. Click en el botón de arriba para añadir.</p>';
+				container.innerHTML = '<p class="text-purple-400 text-sm">No has seleccionado juegos recomendados aún. Click en el botón de arriba para añadir.</p>';
 				return;
 			}
 			
-			container.innerHTML = '<p class="text-purple-400 text-sm mb-3">Cargando tus juegos favoritos...</p>';
+			container.innerHTML = '<p class="text-purple-400 text-sm mb-3">Cargando tus juegos recomendados...</p>';
 			
 			fetch('/rawg/favorites').then(res => res.json()).then(data => {
 				if(data.games && data.games.length > 0) {
@@ -424,11 +453,11 @@
 						</div>
 					`;
 				} else {
-					container.innerHTML = '<p class="text-purple-400 text-sm">No has seleccionado juegos favoritos aún.</p>';
+					container.innerHTML = '<p class="text-purple-400 text-sm">No has seleccionado juegos recomendados aún.</p>';
 				}
 			}).catch(error => {
-				console.error('Error cargando favoritos:', error);
-				container.innerHTML = '<p class="text-red-400 text-sm">Error al cargar juegos favoritos</p>';
+				console.error('Error cargando recomendados:', error);
+				container.innerHTML = '<p class="text-red-400 text-sm">Error al cargar juegos recomendados</p>';
 			});
 		}
 

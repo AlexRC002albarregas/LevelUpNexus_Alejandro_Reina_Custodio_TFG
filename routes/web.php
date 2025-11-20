@@ -42,6 +42,7 @@ Route::middleware('auth:web')->group(function(){
     // Mensajería
     Route::get('/messages/{friend}', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.get');
     Route::post('/messages/{friend}', [\App\Http\Controllers\MessageController::class, 'store'])->name('messages.send');
+    Route::delete('/messages/{message}', [\App\Http\Controllers\MessageController::class, 'destroy'])->name('messages.destroy');
     
     // Contador de notificaciones en tiempo real
     Route::get('/api/notifications/count', [\App\Http\Controllers\NotificationController::class, 'count'])->name('notifications.count');

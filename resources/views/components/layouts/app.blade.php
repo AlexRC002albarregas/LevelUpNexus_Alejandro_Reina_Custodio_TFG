@@ -3,6 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="csrf-token" content="{{ csrf_token() }}">
 	<title>{{ $title ?? 'LevelUp Nexus' }}</title>
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -236,6 +237,38 @@
 	@endguest
 
 	<script>
+		// Toast global reutilizable
+		window.showToast = window.showToast || function(message, type = 'success') {
+			if(!message) return;
+			let container = document.getElementById('toastContainer');
+			if(!container) {
+				container = document.createElement('div');
+				container.id = 'toastContainer';
+				container.style.position = 'fixed';
+				container.style.top = '1rem';
+				container.style.right = '1rem';
+				container.style.zIndex = '9999';
+				container.style.display = 'flex';
+				container.style.flexDirection = 'column';
+				container.style.gap = '0.5rem';
+				container.style.pointerEvents = 'none';
+				document.body.appendChild(container);
+			}
+			const toast = document.createElement('div');
+			toast.className = type === 'error'
+				? 'px-4 py-3 rounded-lg bg-red-600/90 border border-red-400 text-white text-sm shadow-lg transition'
+				: 'px-4 py-3 rounded-lg bg-purple-600/90 border border-purple-300 text-white text-sm shadow-lg transition';
+			toast.textContent = message;
+			toast.style.opacity = '1';
+			container.appendChild(toast);
+			setTimeout(() => {
+				toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+				toast.style.opacity = '0';
+				toast.style.transform = 'translateY(-10px)';
+				setTimeout(() => toast.remove(), 400);
+			}, 2500);
+		};
+
 		// Auto-ocultar notificaciones después de 4 segundos
 		document.addEventListener('DOMContentLoaded', function() {
 			const notifications = document.querySelectorAll('[data-auto-dismiss]');

@@ -6,10 +6,10 @@
 		</div>
 		<p class="uppercase tracking-[0.5em] text-sm text-rose-200/80 mb-2">Conexión perdida</p>
 		<h1 class="text-4xl md:text-5xl font-black bg-gradient-to-r from-pink-400 to-purple-500 bg-clip-text text-transparent mb-4">
-			Ese perfil ya no está disponible
+			Ese perfil no está disponible
 		</h1>
 		<p class="text-purple-200/80 max-w-2xl mx-auto mb-10">
-			Es posible que la amistad se haya eliminado, que el usuario te haya bloqueado o que su perfil sea privado.
+			Es posible que la cuenta se haya eliminado o que el usuario no exista desde un inicio.
 			Busca nuevos compañeros de batalla desde la sección de amigos.
 		</p>
 		<div class="flex flex-col sm:flex-row items-center justify-center gap-4">

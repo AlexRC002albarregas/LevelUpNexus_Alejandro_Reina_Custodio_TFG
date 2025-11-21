@@ -6,7 +6,7 @@
 		</div>
 		<p class="uppercase tracking-[0.5em] text-sm text-indigo-200/80 mb-2">Grupo inaccesible</p>
 		<h1 class="text-4xl md:text-5xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent mb-4">
-			Este grupo ya no está disponible
+			Este grupo no está disponible
 		</h1>
 		<p class="text-purple-200/80 max-w-2xl mx-auto mb-10">
 			Puede que te hayan expulsado, que hayas salido o que el grupo se haya disuelto. 

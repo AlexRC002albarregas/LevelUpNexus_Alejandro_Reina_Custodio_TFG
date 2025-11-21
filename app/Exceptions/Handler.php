@@ -6,6 +6,7 @@ use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 use Illuminate\Support\Str;
@@ -33,8 +34,25 @@ class Handler extends ExceptionHandler
         });
     }
 
+    /**
+     * Convierte una excepción de autenticación en una respuesta no autenticada.
+     */
+    protected function unauthenticated($request, AuthenticationException $exception)
+    {
+        if($request->expectsJson()) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        return $this->renderUnauthorizedView($request);
+    }
+
     public function render($request, Throwable $e)
     {
+        // Manejar excepciones de autenticación con página personalizada
+        if($e instanceof AuthenticationException && !$request->expectsJson()) {
+            return $this->renderUnauthorizedView($request);
+        }
+
         $status = $this->resolveStatusCode($e);
 
         if($status && $this->shouldRenderCustomSectionView($request, $status)) {
@@ -90,7 +108,8 @@ class Handler extends ExceptionHandler
             return 'errors.groups';
         }
 
-        return null;
+        // Para rutas generales que no pertenecen a ninguna sección específica
+        return 'errors.home';
     }
 
     protected function resolveStatusCode(Throwable $e): ?int
@@ -109,5 +128,16 @@ class Handler extends ExceptionHandler
         }
 
         return null;
+    }
+
+    protected function renderUnauthorizedView(Request $request)
+    {
+        $errorsBag = session('errors');
+        if(!$errorsBag instanceof ViewErrorBag) {
+            $errorsBag = new ViewErrorBag();
+        }
+        app('view')->share('errors', $errorsBag);
+
+        return response()->view('errors.unauthorized', [], 401);
     }
 }

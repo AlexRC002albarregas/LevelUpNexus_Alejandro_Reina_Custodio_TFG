@@ -89,8 +89,8 @@ Route::middleware('auth:web')->group(function(){
 });
 
 // Grupos
-Route::get('/groups', [\App\Http\Controllers\GroupController::class, 'index'])->name('groups.index');
 Route::middleware('auth:web')->group(function(){
+    Route::get('/groups', [\App\Http\Controllers\GroupController::class, 'index'])->name('groups.index');
     Route::get('/groups/create', [\App\Http\Controllers\GroupController::class, 'create'])->name('groups.create');
     Route::post('/groups', [\App\Http\Controllers\GroupController::class, 'store'])->name('groups.store');
     Route::get('/groups/{group}', [\App\Http\Controllers\GroupController::class, 'show'])->name('groups.show');

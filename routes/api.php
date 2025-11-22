@@ -21,6 +21,18 @@ Route::post('login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
-    Route::apiResource('profiles', ProfileController::class);
-    Route::apiResource('games', GameController::class);
+    Route::apiResource('profiles', ProfileController::class)->names([
+        'index' => 'api.profiles.index',
+        'store' => 'api.profiles.store',
+        'show' => 'api.profiles.show',
+        'update' => 'api.profiles.update',
+        'destroy' => 'api.profiles.destroy',
+    ]);
+    Route::apiResource('games', GameController::class)->names([
+        'index' => 'api.games.index',
+        'store' => 'api.games.store',
+        'show' => 'api.games.show',
+        'update' => 'api.games.update',
+        'destroy' => 'api.games.destroy',
+    ]);
 });

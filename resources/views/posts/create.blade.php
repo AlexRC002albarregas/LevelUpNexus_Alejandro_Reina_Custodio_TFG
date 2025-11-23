@@ -164,7 +164,24 @@
 					if(data.games && data.games.length > 0) {
 						gameResults.innerHTML = '';
 						data.games.forEach(game => {
-							const platforms = game.platforms?.join(', ') || 'N/A';
+							// Extraer nombres de plataformas correctamente
+							let platforms = 'N/A';
+							if(game.platforms && Array.isArray(game.platforms) && game.platforms.length > 0) {
+								const platformNames = game.platforms
+									.map(p => {
+										// La estructura puede ser p.platform.name o p.name
+										if(p.platform && p.platform.name) {
+											return p.platform.name;
+										}
+										if(p.name) {
+											return p.name;
+										}
+										return null;
+									})
+									.filter(name => name !== null);
+								platforms = platformNames.length > 0 ? platformNames.join(', ') : 'N/A';
+							}
+							
 							const div = document.createElement('div');
 							div.className = 'p-3 hover:bg-purple-500/20 cursor-pointer border-b border-purple-500/30 last:border-0 transition';
 							div.onclick = () => selectGame(game);
@@ -194,7 +211,23 @@
 
 		// Seleccionar juego
 		function selectGame(game) {
-			const platforms = game.platforms?.join(', ') || 'N/A';
+			// Extraer nombres de plataformas correctamente
+			let platforms = 'N/A';
+			if(game.platforms && Array.isArray(game.platforms) && game.platforms.length > 0) {
+				const platformNames = game.platforms
+					.map(p => {
+						// La estructura puede ser p.platform.name o p.name
+						if(p.platform && p.platform.name) {
+							return p.platform.name;
+						}
+						if(p.name) {
+							return p.name;
+						}
+						return null;
+					})
+					.filter(name => name !== null);
+				platforms = platformNames.length > 0 ? platformNames.join(', ') : 'N/A';
+			}
 			
 			// Guardar datos en campos ocultos
 			document.getElementById('rawg_game_id').value = game.id;

@@ -294,8 +294,17 @@
 			let platformsText = '';
 			if (game.platforms && game.platforms.length > 0) {
 				const platformNames = game.platforms
-					.map(p => p.platform?.name)
-					.filter(Boolean)
+					.map(p => {
+						// La estructura puede ser p.platform.name o p.name
+						if(p.platform && p.platform.name) {
+							return p.platform.name;
+						}
+						if(p.name) {
+							return p.name;
+						}
+						return null;
+					})
+					.filter(name => name !== null)
 					.slice(0, 5);
 				if (platformNames.length > 0) {
 					platformsText = `<div class="text-xs text-purple-300 mt-2">

@@ -13,8 +13,12 @@
 			@forelse ($users as $user)
 				<tr class="hover:bg-slate-900/40 transition">
 					<td class="px-6 py-4">
-						<div class="flex items-center gap-3">
-							<div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border border-purple-400/60 overflow-hidden flex items-center justify-center font-semibold">
+						<a 
+							href="{{ route('users.show', $user) }}" 
+							class="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 rounded-xl transition"
+							title="Ver perfil de {{ $user->name }}"
+						>
+							<div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 border border-purple-400/60 overflow-hidden flex items-center justify-center font-semibold group-hover:border-pink-400/80 transition">
 								@if($user->avatar)
 									<img src="{{ asset('storage/' . $user->avatar) }}" alt="{{ $user->name }}" class="w-full h-full object-cover">
 								@else
@@ -22,7 +26,7 @@
 								@endif
 							</div>
 							<div>
-								<div class="font-semibold">{{ $user->name }}</div>
+								<div class="font-semibold group-hover:text-pink-200 transition">{{ $user->name }}</div>
 								<div class="text-xs text-purple-300/80 flex items-center gap-2">
 									<span>ID #{{ $user->id }}</span>
 									@if($user->isAdmin())
@@ -30,7 +34,7 @@
 									@endif
 								</div>
 							</div>
-						</div>
+						</a>
 					</td>
 					<td class="px-6 py-4">
 						<div class="text-sm break-all">{{ $user->email }}</div>
